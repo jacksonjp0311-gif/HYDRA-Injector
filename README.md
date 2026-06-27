@@ -118,6 +118,24 @@ Verify a codeweave spec for CI:
 hydra-inject code-verify examples/code_injection_spec.json
 ```
 
+Plan a multi-injection bundle:
+
+```powershell
+hydra-inject code-bundle examples/code_bundle_spec.json --format report
+```
+
+Record a session ledger:
+
+```powershell
+hydra-inject code-plan examples/code_injection_spec.json --ledger reports/hydra_sessions.jsonl
+```
+
+List policy profiles:
+
+```powershell
+hydra-inject code-profiles
+```
+
 Apply only after review:
 
 ```powershell
@@ -142,6 +160,16 @@ Codeweave currently blocks:
 - pipe-to-shell payloads.
 
 The default workflow is diff-only. Nothing is written unless `code-apply` is used.
+
+Codeweave profiles:
+
+| Profile | Best for |
+| --- | --- |
+| `strict` | Small, review-heavy code injections. |
+| `library` | Python package/library edits. |
+| `app` | Application files across Python, JS/TS, CSS, and HTML. |
+| `docs` | Documentation-only injection. |
+| `experimental` | Larger local experiments that still require anchors. |
 
 ## Residual Field Operator
 

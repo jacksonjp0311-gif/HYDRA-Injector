@@ -1,0 +1,21 @@
+{
+  "root": ".",
+  "profile": "strict",
+  "session_id": "hydra-demo-bundle",
+  "rationale": "Demonstrate a bounded multi-file agent codeweave plan.",
+  "bundle": [
+    {
+      "target_file": "examples/code_target.py",
+      "marker": "# HYDRA-INJECT:slot",
+      "mode": "after",
+      "code": "\n\ndef injected_hook() -> str:\n    return \"bounded injection\"\n"
+    },
+    {
+      "target_file": "examples/code_target.py",
+      "marker": "\"\"\"Example target for HYDRA codeweave.\"\"\"",
+      "mode": "after",
+      "code": "\n# HYDRA bundle touched this file."
+    }
+  ]
+}
+

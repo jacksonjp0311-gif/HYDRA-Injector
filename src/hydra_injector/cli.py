@@ -9,7 +9,14 @@ from pathlib import Path
 
 import numpy as np
 
-from hydra_injector.codeweave import CodeInjectionSpec, plan_code_injection
+from hydra_injector.codeweave import (
+    PROFILE_DEFAULTS,
+    CodeInjectionSpec,
+    plan_code_bundle,
+    plan_code_injection,
+    render_review_report,
+    write_session_ledger,
+)
 from hydra_injector.governance import archive_gate
 from hydra_injector.operator import HydraConfig, hydra_operator
 from hydra_injector.robustness import perturbation_sweep
@@ -44,13 +51,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     code_plan = sub.add_parser("code-plan", help="Plan a governed marker-based code injection and print a diff.")
     code_plan.add_argument("spec_file")
-    code_plan.add_argument("--format", choices=("json", "diff"), default="diff")
+    code_plan.add_argument("--format", choices=("json", "diff", "report"), default="diff")
+    code_plan.add_argument("--ledger", type=Path, default=None)
 
     code_apply = sub.add_parser("code-apply", help="Apply a governed marker-based code injection.")
     code_apply.add_argument("spec_file")
+    code_apply.add_argument("--ledger", type=Path, default=None)
 
     code_verify = sub.add_parser("code-verify", help="Verify that a code injection spec is admissible without applying it.")
     code_verify.add_argument("spec_file")
+
+    code_bundle = sub.add_parser("code-bundle", help="Plan a governed multi-file code injection bundle.")
+    code_bundle.add_argument("spec_file")
+    code_bundle.add_argument("--apply", action="store_true")
+    code_bundle.add_argument("--format", choices=("json", "diff", "report"), default="report")
+    code_bundle.add_argument("--ledger", type=Path, default=None)
+
+    code_profiles = sub.add_parser("code-profiles", help="List built-in codeweave profiles.")
+    code_profiles.add_argument("--format", choices=("json", "markdown"), default="markdown")
 
     code_scaffold = sub.add_parser("code-scaffold", help="Print a starter code injection spec.")
     code_scaffold.add_argument("--target-file", default="example.py")
@@ -100,8 +118,12 @@ def main(argv: list[str] | None = None) -> int:
             _validate_schema(args.spec_file, "codeweave_spec.schema.json")
             spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
             result = plan_code_injection(spec, apply=False)
+            if args.ledger:
+                write_session_ledger(result, args.ledger)
             if args.format == "json":
                 print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+            elif args.format == "report":
+                print(render_review_report(result), end="")
             else:
                 print(result.diff, end="")
                 if result.warnings:
@@ -117,8 +139,33 @@ def main(argv: list[str] | None = None) -> int:
             _validate_schema(args.spec_file, "codeweave_spec.schema.json")
             spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
             result = plan_code_injection(spec, apply=True)
+            if args.ledger:
+                write_session_ledger(result, args.ledger)
             print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
             return 0 if result.admissible else 2
+        if args.command == "code-bundle":
+            _validate_schema(args.spec_file, "codeweave_bundle.schema.json")
+            payload = json.loads(Path(args.spec_file).read_text(encoding="utf-8"))
+            result = plan_code_bundle(payload, apply=args.apply)
+            if args.ledger:
+                write_session_ledger(result, args.ledger)
+            if args.format == "json":
+                print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+            elif args.format == "diff":
+                print(result.combined_diff, end="")
+            else:
+                print(render_review_report(result), end="")
+            return 0 if result.admissible else 2
+        if args.command == "code-profiles":
+            if args.format == "json":
+                print(json.dumps(PROFILE_DEFAULTS, indent=2, sort_keys=True))
+            else:
+                print("| Profile | Max Bytes | Extensions | Rationale Required |")
+                print("| --- | ---: | --- | --- |")
+                for name, profile in sorted(PROFILE_DEFAULTS.items()):
+                    exts = ", ".join(profile["allow_extensions"])
+                    print(f"| {name} | {profile['max_bytes']} | {exts} | {str(profile['require_rationale']).lower()} |")
+            return 0
         return 1
     except Exception as exc:  # noqa: BLE001 - CLI should return clean operator errors.
         print(f"hydra-inject: {exc}", file=sys.stderr)
@@ -204,6 +251,7 @@ def _demo_spec() -> dict[str, object]:
 def _code_scaffold(target_file: str, marker: str) -> dict[str, object]:
     return {
         "root": ".",
+        "profile": "strict",
         "target_file": target_file,
         "marker": marker,
         "mode": "after",

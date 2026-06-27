@@ -2,6 +2,7 @@ from pathlib import Path
 
 from hydra_injector import CodeInjectionSpec, plan_code_injection
 from hydra_injector.codeweave import inject_text
+from hydra_injector.codeweave import plan_code_bundle, render_review_report
 from hydra_injector.cli import _validate_schema
 
 
@@ -20,6 +21,7 @@ def test_plan_code_injection_generates_diff(tmp_path: Path):
         target_file="target.py",
         marker="# slot",
         code="\ndef x():\n    return 1\n",
+        rationale="bounded test injection",
     )
 
     result = plan_code_injection(spec)
@@ -53,6 +55,7 @@ def test_code_apply_writes_when_admissible(tmp_path: Path):
         target_file="target.py",
         marker="# slot",
         code="\ndef x():\n    return 1\n",
+        rationale="bounded test injection",
     )
 
     result = plan_code_injection(spec, apply=True)
@@ -63,3 +66,28 @@ def test_code_apply_writes_when_admissible(tmp_path: Path):
 
 def test_example_codeweave_spec_matches_schema():
     _validate_schema("examples/code_injection_spec.json", "codeweave_spec.schema.json")
+
+
+def test_code_bundle_generates_combined_report(tmp_path: Path):
+    target = tmp_path / "target.py"
+    target.write_text("# a\n# b\n", encoding="utf-8")
+    bundle = {
+        "root": str(tmp_path),
+        "profile": "strict",
+        "rationale": "bounded multi-file test",
+        "bundle": [
+            {"target_file": "target.py", "marker": "# a", "code": "\ndef a():\n    return 1\n"},
+            {"target_file": "target.py", "marker": "# b", "code": "\ndef b():\n    return 2\n"},
+        ],
+    }
+
+    result = plan_code_bundle(bundle)
+    report = render_review_report(result)
+
+    assert result.admissible is True
+    assert "def a" in result.combined_diff
+    assert "HYDRA Codeweave Review" in report
+
+
+def test_example_code_bundle_spec_matches_schema():
+    _validate_schema("examples/code_bundle_spec.json", "codeweave_bundle.schema.json")

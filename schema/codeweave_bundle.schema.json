@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jacksonjp0311-gif/HYDRA-Injector/schema/codeweave_bundle.schema.json",
+  "title": "HYDRA Codeweave Bundle",
+  "type": "object",
+  "required": ["bundle"],
+  "properties": {
+    "root": { "type": "string" },
+    "profile": { "type": "string" },
+    "session_id": { "type": "string" },
+    "rationale": { "type": "string" },
+    "bundle": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["target_file", "marker", "code"],
+        "properties": {
+          "target_file": { "type": "string" },
+          "marker": { "type": "string" },
+          "mode": { "enum": ["before", "after", "replace"] },
+          "code": { "type": "string" },
+          "rationale": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
