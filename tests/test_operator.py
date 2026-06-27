@@ -1,4 +1,5 @@
 from hydra_injector import HydraConfig, archive_gate, hydra_operator, perturbation_sweep
+from hydra_injector.cli import _validate_schema
 
 
 def test_hydra_operator_returns_bounded_residual():
@@ -26,9 +27,12 @@ def test_archive_gate_requires_shadow_header_fields():
     assert "version" in gate["missing_fields"]
 
 
+def test_example_hydra_spec_matches_schema():
+    _validate_schema("examples/demo_spec.json", "hydra_spec.schema.json")
+
+
 def _spec():
     return {
         "mask": [[0, 1, 0], [1, 1, 1], [0, 1, 0]],
         "field": [[0.0, 0.2, 0.0], [0.2, 1.0, 0.2], [0.0, 0.2, 0.0]],
     }
-

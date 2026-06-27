@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jacksonjp0311-gif/HYDRA-Injector/schema/hydra_spec.schema.json",
+  "title": "HYDRA Field Injection Spec",
+  "type": "object",
+  "required": ["mask", "field"],
+  "properties": {
+    "mask": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": ["number", "boolean"] }
+      }
+    },
+    "field": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "number" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "target_volume": { "type": "number" },
+        "retract_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+        "pin_strength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "boundary_band": { "type": "integer", "minimum": 0 },
+        "seal_steps": { "type": "integer", "minimum": 0 },
+        "seal_alpha": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "robustness": { "type": "boolean" },
+    "header": { "type": "object" }
+  },
+  "additionalProperties": true
+}
+

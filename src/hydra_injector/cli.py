@@ -49,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     code_apply = sub.add_parser("code-apply", help="Apply a governed marker-based code injection.")
     code_apply.add_argument("spec_file")
 
+    code_verify = sub.add_parser("code-verify", help="Verify that a code injection spec is admissible without applying it.")
+    code_verify.add_argument("spec_file")
+
     code_scaffold = sub.add_parser("code-scaffold", help="Print a starter code injection spec.")
     code_scaffold.add_argument("--target-file", default="example.py")
     code_scaffold.add_argument("--marker", default="# HYDRA-INJECT:slot")
@@ -67,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             _emit(payload, args.format, None)
             return 0
         if args.command == "run":
+            _validate_schema(args.spec_file, "hydra_spec.schema.json")
             spec = json.loads(Path(args.spec_file).read_text(encoding="utf-8"))
             payload = _run_spec(spec)
             _emit(payload, args.format, args.output)
@@ -93,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(_code_scaffold(args.target_file, args.marker), indent=2))
             return 0
         if args.command == "code-plan":
+            _validate_schema(args.spec_file, "codeweave_spec.schema.json")
             spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
             result = plan_code_injection(spec, apply=False)
             if args.format == "json":
@@ -102,7 +107,14 @@ def main(argv: list[str] | None = None) -> int:
                 if result.warnings:
                     print("\n".join(f"warning: {warning}" for warning in result.warnings), file=sys.stderr)
             return 0 if result.admissible else 2
+        if args.command == "code-verify":
+            _validate_schema(args.spec_file, "codeweave_spec.schema.json")
+            spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
+            result = plan_code_injection(spec, apply=False)
+            print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+            return 0 if result.admissible else 2
         if args.command == "code-apply":
+            _validate_schema(args.spec_file, "codeweave_spec.schema.json")
             spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
             result = plan_code_injection(spec, apply=True)
             print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
@@ -134,6 +146,20 @@ def _config(raw: object) -> HydraConfig:
         seal_steps=int(raw.get("seal_steps", 8)),
         seal_alpha=float(raw.get("seal_alpha", 0.35)),
     )
+
+
+def _validate_schema(spec_file: str, schema_name: str) -> None:
+    try:
+        import jsonschema
+    except Exception as exc:
+        raise RuntimeError("schema validation requires the optional 'jsonschema' package; install .[dev]") from exc
+
+    payload = json.loads(Path(spec_file).read_text(encoding="utf-8"))
+    schema_path = Path(__file__).resolve().parents[2] / "schema" / schema_name
+    if not schema_path.exists():
+        schema_path = Path.cwd() / "schema" / schema_name
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    jsonschema.validate(payload, schema)
 
 
 def _emit(payload: dict[str, object], fmt: str, output: Path | None) -> None:

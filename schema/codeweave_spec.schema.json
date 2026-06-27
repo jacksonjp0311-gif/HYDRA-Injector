@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/jacksonjp0311-gif/HYDRA-Injector/schema/codeweave_spec.schema.json",
+  "title": "HYDRA Codeweave Injection Spec",
+  "type": "object",
+  "required": ["target_file", "marker", "code"],
+  "properties": {
+    "root": { "type": "string" },
+    "target_file": { "type": "string", "minLength": 1 },
+    "marker": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["before", "after", "replace"] },
+    "code": { "type": "string" },
+    "allow_extensions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "max_bytes": { "type": "integer", "minimum": 1 },
+    "forbidden_patterns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rationale": { "type": "string" }
+  },
+  "additionalProperties": true
+}
+

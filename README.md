@@ -112,6 +112,12 @@ Return structured JSON:
 hydra-inject code-plan examples/code_injection_spec.json --format json
 ```
 
+Verify a codeweave spec for CI:
+
+```powershell
+hydra-inject code-verify examples/code_injection_spec.json
+```
+
 Apply only after review:
 
 ```powershell
@@ -273,6 +279,7 @@ Supporting references:
 python -m pip install -e .[dev]
 python -m pytest
 hydra-inject run examples/demo_spec.json
+hydra-inject code-verify examples/code_injection_spec.json
 hydra-inject code-plan examples/code_injection_spec.json
 ```
 
