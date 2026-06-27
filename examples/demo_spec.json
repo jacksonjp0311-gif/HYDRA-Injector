@@ -1,0 +1,51 @@
+{
+  "mask": [
+    [0, 0, 0, 1, 0, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [1, 1, 1, 1, 1, 1, 1],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 0, 1, 0, 0, 0]
+  ],
+  "field": [
+    [0.001, 0.004, 0.010, 0.018, 0.010, 0.004, 0.001],
+    [0.004, 0.018, 0.050, 0.082, 0.050, 0.018, 0.004],
+    [0.010, 0.050, 0.135, 0.223, 0.135, 0.050, 0.010],
+    [0.018, 0.082, 0.223, 1.000, 0.223, 0.082, 0.018],
+    [0.010, 0.050, 0.135, 0.223, 0.135, 0.050, 0.010],
+    [0.004, 0.018, 0.050, 0.082, 0.050, 0.018, 0.004],
+    [0.001, 0.004, 0.010, 0.018, 0.010, 0.004, 0.001]
+  ],
+  "config": {
+    "target_volume": 1.0,
+    "retract_fraction": 0.25,
+    "pin_strength": 0.35,
+    "boundary_band": 1,
+    "seal_steps": 8,
+    "seal_alpha": 0.35
+  },
+  "robustness": true,
+  "header": {
+    "title": "HYDRA residual injection artifact",
+    "version": "v0.1",
+    "author": "James Paul Jackson",
+    "date": "2026-06-27",
+    "status": "operator scaffold",
+    "artifact_class": "software bridge / architecture scaffold",
+    "claim_type": "bounded operator execution claim",
+    "evidence_basis": "local generated demo",
+    "boundary_of_validity": "2D masked scalar fields",
+    "primary_drift_risk": "smoothness mistaken for validity",
+    "core_invariant": "anchor, inject, retract, seal, and report bounded residual metrics",
+    "memory_compression_anchor": "HYDRA residual execution remains valid only while boundedness and nontriviality remain visible",
+    "cross_canon_alignment": "projection, inpainting, constrained smoothing",
+    "source_extraction": "HYDRA v1.4 gist",
+    "empirical_confidence_badge": "demo only, not external validation",
+    "purpose": "generate a governed residual injection run",
+    "evolution_gate": "additive changes only",
+    "terminology_stability": "do not rename anchor, inject, retract, seal",
+    "non_claims": "not universal, not physically validated, not a substitute for empirical validation"
+  }
+}
+
