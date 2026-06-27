@@ -140,15 +140,29 @@ Discover injection markers:
 
 ```powershell
 hydra-inject markers .
+hydra-inject markers . --slots-only
 ```
 
 Apply and run tests:
 
 ```powershell
 hydra-inject code-apply examples/code_injection_spec.json --test "python -m pytest"
+hydra-inject code-apply examples/code_injection_spec.json --test "python -m pytest" --rollback-on-test-fail
 ```
 
 Every admissible plan includes a rollback diff. Review reports include both the forward patch and the rollback patch so a human or agent can see how to unwind the change before applying it.
+
+Rollback an applied session record:
+
+```powershell
+hydra-inject code-rollback reports/session.json
+```
+
+Render an HTML review report:
+
+```powershell
+hydra-inject code-bundle examples/code_bundle_spec.json --format html
+```
 
 Apply only after review:
 
