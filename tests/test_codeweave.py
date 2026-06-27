@@ -47,6 +47,43 @@ def test_code_injection_blocks_forbidden_pattern(tmp_path: Path):
     assert any("forbidden pattern" in warning for warning in result.warnings)
 
 
+def test_marker_metadata_rejects_profile_mismatch(tmp_path: Path):
+    target = tmp_path / "target.py"
+    target.write_text("# HYDRA-INJECT:slot name=demo profile=docs\n", encoding="utf-8")
+    spec = CodeInjectionSpec(
+        root=str(tmp_path),
+        target_file="target.py",
+        marker="# HYDRA-INJECT:slot name=demo profile=docs",
+        name="demo",
+        profile="strict",
+        code="\ndef x():\n    return 1\n",
+        rationale="bounded test injection",
+    )
+
+    result = plan_code_injection(spec)
+
+    assert result.admissible is False
+    assert any("marker profile mismatch" in warning for warning in result.warnings)
+
+
+def test_marker_metadata_rejects_name_mismatch(tmp_path: Path):
+    target = tmp_path / "target.py"
+    target.write_text("# HYDRA-INJECT:slot name=actual profile=strict\n", encoding="utf-8")
+    spec = CodeInjectionSpec(
+        root=str(tmp_path),
+        target_file="target.py",
+        marker="# HYDRA-INJECT:slot name=actual profile=strict",
+        name="expected",
+        code="\ndef x():\n    return 1\n",
+        rationale="bounded test injection",
+    )
+
+    result = plan_code_injection(spec)
+
+    assert result.admissible is False
+    assert any("marker name mismatch" in warning for warning in result.warnings)
+
+
 def test_code_apply_writes_when_admissible(tmp_path: Path):
     target = tmp_path / "target.py"
     target.write_text("# slot\n", encoding="utf-8")

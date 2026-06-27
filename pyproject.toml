@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "hydra-injector"
-version = "0.1.0"
-description = "Governed anchor-inject-retract-seal residual operator for admissible masked fields."
+version = "0.2.0"
+description = "Governed residual-field and agent-code injection toolkit with marker-bound review workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "James Paul Jackson" }]
 keywords = ["residual", "injection", "mask", "projection", "field", "governance", "robustness"]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
@@ -28,9 +28,9 @@ dependencies = ["numpy>=1.24"]
 dev = ["jsonschema>=4.22", "pytest>=8.0"]
 
 [project.urls]
-Homepage = "https://github.com/jacksonjp0311-gif/hydra-injector"
-Repository = "https://github.com/jacksonjp0311-gif/hydra-injector"
-Issues = "https://github.com/jacksonjp0311-gif/hydra-injector/issues"
+Homepage = "https://github.com/jacksonjp0311-gif/HYDRA-Injector"
+Repository = "https://github.com/jacksonjp0311-gif/HYDRA-Injector"
+Issues = "https://github.com/jacksonjp0311-gif/HYDRA-Injector/issues"
 
 [project.scripts]
 hydra-inject = "hydra_injector.cli:main"

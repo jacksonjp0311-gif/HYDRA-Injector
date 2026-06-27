@@ -118,6 +118,12 @@ Verify a codeweave spec for CI:
 hydra-inject code-verify examples/code_injection_spec.json
 ```
 
+Dry-run the apply path without writing files:
+
+```powershell
+hydra-inject code-apply examples/code_injection_spec.json --dry-run
+```
+
 Plan a multi-injection bundle:
 
 ```powershell
@@ -173,7 +179,7 @@ hydra-inject code-apply examples/code_injection_spec.json
 Generate a starter codeweave spec:
 
 ```powershell
-hydra-inject code-scaffold --target-file src/app.py --marker "# HYDRA-INJECT:slot"
+hydra-inject code-scaffold --target-file src/app.py --marker "# HYDRA-INJECT:slot name=init profile=strict"
 ```
 
 Codeweave currently blocks:
@@ -188,6 +194,14 @@ Codeweave currently blocks:
 - pipe-to-shell payloads.
 
 The default workflow is diff-only. Nothing is written unless `code-apply` is used.
+
+Marker metadata can bind a spec to a named slot and profile:
+
+```python
+# HYDRA-INJECT:slot name=demo profile=strict
+```
+
+If the spec declares `"name": "demo"` or a marker declares `profile=strict`, HYDRA checks the marker line before planning the edit. A mismatched name or profile makes the injection inadmissible.
 
 Codeweave profiles:
 
@@ -255,7 +269,9 @@ Codeweave spec:
 {
   "root": ".",
   "target_file": "examples/code_target.py",
-  "marker": "# HYDRA-INJECT:slot",
+  "marker": "# HYDRA-INJECT:slot name=demo profile=strict",
+  "name": "demo",
+  "profile": "strict",
   "mode": "after",
   "code": "\n\ndef injected_hook() -> str:\n    return \"bounded injection\"\n",
   "max_bytes": 20000,
@@ -336,7 +352,23 @@ python -m pip install -e .[dev]
 python -m pytest
 hydra-inject run examples/demo_spec.json
 hydra-inject code-verify examples/code_injection_spec.json
+hydra-inject code-apply examples/code_injection_spec.json --dry-run
 hydra-inject code-plan examples/code_injection_spec.json
+```
+
+## Release Gate
+
+Before publishing a release, run:
+
+```powershell
+python -m pip install -e .[dev]
+python -m pytest
+hydra-inject run examples/demo_spec.json
+hydra-inject robustness examples/demo_spec.json
+hydra-inject code-verify examples/code_injection_spec.json
+hydra-inject code-apply examples/code_injection_spec.json --dry-run
+hydra-inject code-bundle examples/code_bundle_spec.json --format html > reports/hydra-codeweave-review.html
+hydra-inject markers . --slots-only --format json
 ```
 
 ## Non-Claim Lock

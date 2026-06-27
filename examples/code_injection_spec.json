@@ -1,11 +1,12 @@
 {
   "root": ".",
   "target_file": "examples/code_target.py",
-  "marker": "# HYDRA-INJECT:slot",
+  "marker": "# HYDRA-INJECT:slot name=demo profile=strict",
+  "name": "demo",
+  "profile": "strict",
   "mode": "after",
   "code": "\n\ndef injected_hook() -> str:\n    return \"bounded injection\"\n",
   "allow_extensions": [".py", ".md", ".json", ".toml", ".yml", ".yaml", ".txt"],
   "max_bytes": 20000,
   "rationale": "Demonstrate governed agent-authored code insertion into an explicit marker."
 }
-

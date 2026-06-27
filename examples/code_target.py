@@ -5,5 +5,4 @@ def existing() -> str:
     return "existing"
 
 
-# HYDRA-INJECT:slot
-
+# HYDRA-INJECT:slot name=demo profile=strict

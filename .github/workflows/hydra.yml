@@ -27,3 +27,12 @@ jobs:
 
       - name: Verify codeweave spec
         run: hydra-inject code-verify examples/code_injection_spec.json
+
+      - name: Dry-run code apply
+        run: hydra-inject code-apply examples/code_injection_spec.json --dry-run
+
+      - name: Render HTML review
+        run: hydra-inject code-bundle examples/code_bundle_spec.json --format html > hydra-codeweave-review.html
+
+      - name: Discover governed markers
+        run: hydra-inject markers . --slots-only --format json

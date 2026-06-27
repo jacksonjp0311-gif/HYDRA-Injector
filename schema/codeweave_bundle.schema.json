@@ -18,6 +18,8 @@
         "properties": {
           "target_file": { "type": "string" },
           "marker": { "type": "string" },
+          "name": { "type": "string" },
+          "profile": { "type": "string" },
           "mode": { "enum": ["before", "after", "replace"] },
           "code": { "type": "string" },
           "rationale": { "type": "string" }

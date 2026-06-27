@@ -15,6 +15,7 @@ from hydra_injector.codeweave import (
     discover_markers,
     plan_code_bundle,
     plan_code_injection,
+    parse_marker_metadata,
     render_review_report,
     render_review_report_html,
     rollback_session,
@@ -59,6 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     code_apply = sub.add_parser("code-apply", help="Apply a governed marker-based code injection.")
     code_apply.add_argument("spec_file")
+    code_apply.add_argument("--dry-run", action="store_true", help="Validate and render the apply result without writing files.")
     code_apply.add_argument("--ledger", type=Path, default=None)
     code_apply.add_argument("--test", default="", help="Optional test command to run after apply.")
     code_apply.add_argument("--rollback-on-test-fail", action="store_true")
@@ -89,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     code_scaffold = sub.add_parser("code-scaffold", help="Print a starter code injection spec.")
     code_scaffold.add_argument("--target-file", default="example.py")
-    code_scaffold.add_argument("--marker", default="# HYDRA-INJECT:slot")
+    code_scaffold.add_argument("--marker", default="# HYDRA-INJECT:slot name=init profile=strict")
     return parser
 
 
@@ -159,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
             spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
             result = plan_code_injection(
                 spec,
-                apply=True,
+                apply=not args.dry_run,
                 test_command=args.test,
                 rollback_on_test_fail=args.rollback_on_test_fail,
             )
@@ -308,11 +310,13 @@ def _demo_spec() -> dict[str, object]:
 
 
 def _code_scaffold(target_file: str, marker: str) -> dict[str, object]:
+    metadata = parse_marker_metadata(marker)
     return {
         "root": ".",
         "profile": "strict",
         "target_file": target_file,
         "marker": marker,
+        "name": metadata.get("name", ""),
         "mode": "after",
         "code": "\n# injected by HYDRA codeweave\ndef injected_hook():\n    return 'bounded injection'\n",
         "allow_extensions": [".py", ".md", ".json", ".toml", ".yml", ".yaml", ".txt"],

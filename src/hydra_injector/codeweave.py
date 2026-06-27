@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import html
 import json
 import re
 import subprocess
@@ -69,6 +70,7 @@ class CodeInjectionSpec:
     target_file: str
     marker: str
     code: str
+    name: str = ""
     mode: str = "after"
     root: str = "."
     allow_extensions: tuple[str, ...] = (".py", ".md", ".json", ".toml", ".yml", ".yaml", ".txt")
@@ -85,6 +87,7 @@ class CodeInjectionSpec:
             target_file=str(raw["target_file"]),
             marker=str(raw["marker"]),
             code=str(raw["code"]),
+            name=str(raw.get("name", "")),
             mode=str(raw.get("mode", "after")),
             root=str(raw.get("root", ".")),
             allow_extensions=tuple(map(str, raw.get("allow_extensions", defaults["allow_extensions"]))),
@@ -337,23 +340,98 @@ def render_review_report(result: CodeInjectionResult | CodeBundleResult) -> str:
 
 
 def render_review_report_html(result: CodeInjectionResult | CodeBundleResult) -> str:
-    text = render_review_report(result)
-    escaped = (
-        text.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
-    return (
-        "<!doctype html>\n"
-        "<html lang=\"en\"><head><meta charset=\"utf-8\">"
-        "<title>HYDRA Codeweave Review</title>"
-        "<style>body{font-family:Segoe UI,Arial,sans-serif;max-width:1100px;margin:32px auto;"
-        "line-height:1.5;color:#17202a}pre{background:#111827;color:#e5e7eb;padding:16px;"
-        "overflow:auto;border-radius:6px}code{background:#f3f4f6;padding:2px 4px;border-radius:4px}"
-        "</style></head><body><pre>"
-        + escaped
-        + "</pre></body></html>\n"
-    )
+    if isinstance(result, CodeInjectionResult):
+        results = [result]
+        session_id = result.session_id
+        admissible = result.admissible
+        applied = result.applied
+        combined_diff = result.diff
+    else:
+        results = list(result.results)
+        session_id = result.session_id
+        admissible = result.admissible
+        applied = result.applied
+        combined_diff = result.combined_diff
+    rollback_diff = "\n".join(item.rollback_diff for item in results if item.rollback_diff)
+    max_risk = max((item.risk_score for item in results), default=0.0)
+    status_class = "pass" if admissible else "fail"
+    rows = []
+    for item in results:
+        warnings = "; ".join(item.warnings) or "none"
+        rows.append(
+            "<tr>"
+            f"<td><code>{html.escape(item.target_file)}</code></td>"
+            f"<td>{str(item.admissible).lower()}</td>"
+            f"<td>{item.risk_score:.3f}</td>"
+            f"<td>{int(item.metrics['injected_bytes'])}</td>"
+            f"<td>{html.escape(warnings)}</td>"
+            "</tr>"
+        )
+    test_rows = [
+        "<li>"
+        f"<code>{html.escape(item.test_command)}</code> passed: {str(item.test_passed).lower()}"
+        "</li>"
+        for item in results
+        if item.test_command
+    ]
+    tests = ""
+    if test_rows:
+        tests = "<section><h2>Test Command</h2><ul>" + "".join(test_rows) + "</ul></section>"
+    rollback = ""
+    if rollback_diff:
+        rollback = (
+            "<section><h2>Rollback Diff</h2>"
+            f"<pre class=\"diff\">{html.escape(rollback_diff.rstrip())}</pre></section>"
+        )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HYDRA Codeweave Review</title>
+<style>
+:root{{color-scheme:light;--ink:#17202a;--muted:#5b6472;--line:#d7dde5;--panel:#f7f9fc;--code:#101827;--ok:#0f766e;--bad:#b42318;}}
+body{{font-family:Segoe UI,Arial,sans-serif;max-width:1120px;margin:32px auto;padding:0 20px;line-height:1.5;color:var(--ink);background:#fff;}}
+header{{border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:24px;}}
+h1{{font-size:30px;line-height:1.15;margin:0 0 10px;letter-spacing:0;}}
+h2{{font-size:18px;margin:28px 0 10px;letter-spacing:0;}}
+.summary{{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:16px;}}
+.metric{{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--panel);}}
+.label{{font-size:12px;text-transform:uppercase;color:var(--muted);font-weight:700;}}
+.value{{font-size:18px;font-weight:700;margin-top:4px;word-break:break-word;}}
+.pass{{color:var(--ok);}}.fail{{color:var(--bad);}}
+table{{width:100%;border-collapse:collapse;border:1px solid var(--line);}}
+th,td{{text-align:left;border-bottom:1px solid var(--line);padding:10px;vertical-align:top;}}
+th{{background:var(--panel);font-size:13px;color:var(--muted);}}
+code{{background:#eef2f7;border-radius:4px;padding:2px 4px;}}
+pre{{background:var(--code);color:#e5e7eb;padding:16px;overflow:auto;border-radius:8px;font-size:13px;}}
+.diff{{white-space:pre;}}
+</style>
+</head>
+<body>
+<header>
+<h1>HYDRA Codeweave Review</h1>
+<p>Governed marker-based code injection review for an anchor-inject-retract-seal session.</p>
+<div class="summary">
+<div class="metric"><div class="label">Session</div><div class="value">{html.escape(session_id)}</div></div>
+<div class="metric"><div class="label">Admissible</div><div class="value {status_class}">{str(admissible).lower()}</div></div>
+<div class="metric"><div class="label">Applied</div><div class="value">{str(applied).lower()}</div></div>
+<div class="metric"><div class="label">Max Risk</div><div class="value">{max_risk:.3f}</div></div>
+</div>
+</header>
+<section>
+<h2>Targets</h2>
+<table>
+<thead><tr><th>Target</th><th>Admissible</th><th>Risk</th><th>Injected Bytes</th><th>Warnings</th></tr></thead>
+<tbody>{''.join(rows)}</tbody>
+</table>
+</section>
+{tests}
+<section><h2>Diff</h2><pre class="diff">{html.escape(combined_diff.rstrip())}</pre></section>
+{rollback}
+</body>
+</html>
+"""
 
 
 def rollback_session(record: dict[str, Any], *, force: bool = False) -> dict[str, Any]:
@@ -551,6 +629,19 @@ def _validate_spec(spec: CodeInjectionSpec, root: Path, target: Path) -> list[st
         warnings.append(f"extension {target.suffix!r} is not allowed")
     if not target.exists():
         warnings.append("target file does not exist")
+    else:
+        text = target.read_text(encoding="utf-8")
+        marker_line = _find_marker_line(text, spec.marker)
+        if marker_line is None:
+            warnings.append("marker not found in target file")
+        elif is_marker_slot(marker_line):
+            metadata = parse_marker_metadata(marker_line)
+            if spec.name and metadata.get("name") != spec.name:
+                warnings.append(f"marker name mismatch: expected {spec.name!r}, found {metadata.get('name', '')!r}")
+            if metadata.get("profile") and metadata["profile"] != spec.profile:
+                warnings.append(
+                    f"marker profile mismatch: expected {spec.profile!r}, found {metadata['profile']!r}"
+                )
     if len(spec.code.encode("utf-8")) > spec.max_bytes:
         warnings.append("code exceeds max_bytes")
     if not spec.marker:
@@ -562,6 +653,15 @@ def _validate_spec(spec: CodeInjectionSpec, root: Path, target: Path) -> list[st
         if re.search(pattern, spec.code, flags=re.IGNORECASE | re.MULTILINE):
             warnings.append(f"forbidden pattern matched: {pattern}")
     return warnings
+
+
+def _find_marker_line(text: str, marker: str) -> str | None:
+    if marker not in text:
+        return None
+    for line in text.splitlines():
+        if marker in line:
+            return line.strip()
+    return marker
 
 
 def _metrics(original: str, code: str, diff_len: int) -> dict[str, float]:

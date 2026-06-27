@@ -6,7 +6,8 @@
   "bundle": [
     {
       "target_file": "examples/code_target.py",
-      "marker": "# HYDRA-INJECT:slot",
+      "marker": "# HYDRA-INJECT:slot name=demo profile=strict",
+      "name": "demo",
       "mode": "after",
       "code": "\n\ndef injected_hook() -> str:\n    return \"bounded injection\"\n"
     },
@@ -18,4 +19,3 @@
     }
   ]
 }
-
