@@ -12,6 +12,7 @@ import difflib
 import hashlib
 import json
 import re
+import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,6 +105,11 @@ class CodeInjectionResult:
     metrics: dict[str, float]
     session_id: str = ""
     rationale: str = ""
+    rollback_diff: str = ""
+    risk_score: float = 0.0
+    test_command: str = ""
+    test_passed: bool | None = None
+    test_output: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -115,6 +121,11 @@ class CodeInjectionResult:
             "metrics": self.metrics,
             "session_id": self.session_id,
             "rationale": self.rationale,
+            "rollback_diff": self.rollback_diff,
+            "risk_score": self.risk_score,
+            "test_command": self.test_command,
+            "test_passed": self.test_passed,
+            "test_output": self.test_output,
         }
 
 
@@ -143,6 +154,7 @@ def plan_code_injection(
     *,
     apply: bool = False,
     session_id: str | None = None,
+    test_command: str = "",
 ) -> CodeInjectionResult:
     session = session_id or new_session_id(spec)
     root = Path(spec.root).resolve()
@@ -158,13 +170,21 @@ def plan_code_injection(
             metrics=_metrics("", spec.code, 0),
             session_id=session,
             rationale=spec.rationale,
+            risk_score=risk_score(spec, 1),
+            test_command=test_command,
+            test_passed=None,
         )
 
     original = target.read_text(encoding="utf-8")
     updated = inject_text(original, spec.marker, spec.code, spec.mode)
     diff = unified_diff(original, updated, str(target))
+    rollback_diff = unified_diff(updated, original, str(target))
+    test_passed: bool | None = None
+    test_output = ""
     if apply and diff:
         target.write_text(updated, encoding="utf-8")
+        if test_command:
+            test_passed, test_output = run_test_command(test_command, root)
     return CodeInjectionResult(
         target_file=str(target),
         admissible=True,
@@ -174,16 +194,26 @@ def plan_code_injection(
         metrics=_metrics(original, spec.code, len(diff)),
         session_id=session,
         rationale=spec.rationale,
+        rollback_diff=rollback_diff,
+        risk_score=risk_score(spec, 1),
+        test_command=test_command,
+        test_passed=test_passed,
+        test_output=test_output,
     )
 
 
-def plan_code_bundle(raw: dict[str, Any], *, apply: bool = False) -> CodeBundleResult:
+def plan_code_bundle(raw: dict[str, Any], *, apply: bool = False, test_command: str = "") -> CodeBundleResult:
     entries = raw.get("bundle")
     if not isinstance(entries, list) or not entries:
         raise ValueError("bundle spec requires a non-empty 'bundle' list")
     session = str(raw.get("session_id") or new_session_id(raw))
     results = tuple(
-        plan_code_injection(CodeInjectionSpec.from_raw({**raw, **entry}), apply=apply, session_id=session)
+        plan_code_injection(
+            CodeInjectionSpec.from_raw({**raw, **entry}),
+            apply=apply,
+            session_id=session,
+            test_command=test_command,
+        )
         for entry in entries
     )
     combined_diff = "\n".join(result.diff for result in results if result.diff)
@@ -227,19 +257,28 @@ def render_review_report(result: CodeInjectionResult | CodeBundleResult) -> str:
         f"**Session:** `{session_id}`",
         f"**Admissible:** {str(admissible).lower()}",
         f"**Applied:** {str(applied).lower()}",
+        f"**Risk Score:** {max((item.risk_score for item in results), default=0.0):.3f}",
         "",
         "## Targets",
         "",
-        "| Target | Admissible | Injected Bytes | Warnings |",
-        "| --- | --- | ---: | --- |",
+        "| Target | Admissible | Risk | Injected Bytes | Warnings |",
+        "| --- | --- | ---: | ---: | --- |",
     ]
     for item in results:
         warnings = "; ".join(item.warnings)
         lines.append(
-            f"| `{item.target_file}` | {str(item.admissible).lower()} | "
+            f"| `{item.target_file}` | {str(item.admissible).lower()} | {item.risk_score:.3f} | "
             f"{int(item.metrics['injected_bytes'])} | {warnings} |"
         )
+    test_results = [item for item in results if item.test_command]
+    if test_results:
+        lines.extend(["", "## Test Command"])
+        for item in test_results:
+            lines.append(f"- `{item.test_command}` passed: {str(item.test_passed).lower()}")
     lines.extend(["", "## Diff", "", "```diff", combined_diff.rstrip(), "```"])
+    rollback_diff = "\n".join(item.rollback_diff for item in results if item.rollback_diff)
+    if rollback_diff:
+        lines.extend(["", "## Rollback Diff", "", "```diff", rollback_diff.rstrip(), "```"])
     return "\n".join(lines) + "\n"
 
 
@@ -274,6 +313,58 @@ def unified_diff(original: str, updated: str, target_name: str) -> str:
             tofile=f"{target_name}:after",
         )
     )
+
+
+def discover_markers(root: str | Path, marker_pattern: str = "HYDRA-INJECT") -> list[dict[str, Any]]:
+    root_path = Path(root).resolve()
+    markers: list[dict[str, Any]] = []
+    for path in root_path.rglob("*"):
+        if not path.is_file() or ".git" in path.parts:
+            continue
+        if path.suffix not in {".py", ".md", ".json", ".toml", ".yml", ".yaml", ".txt", ".js", ".ts", ".tsx", ".jsx", ".css", ".html"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if marker_pattern in line:
+                markers.append(
+                    {
+                        "file": str(path.relative_to(root_path)),
+                        "line": lineno,
+                        "marker": line.strip(),
+                    }
+                )
+    return markers
+
+
+def risk_score(spec: CodeInjectionSpec, file_count: int = 1) -> float:
+    profile_weight = {
+        "strict": 0.05,
+        "library": 0.12,
+        "docs": 0.08,
+        "app": 0.2,
+        "experimental": 0.35,
+    }.get(spec.profile, 0.25)
+    ext_weight = 0.05 if Path(spec.target_file).suffix in {".md", ".txt", ".json", ".toml", ".yml", ".yaml"} else 0.15
+    size_weight = min(0.35, len(spec.code.encode("utf-8")) / max(spec.max_bytes, 1) * 0.35)
+    mode_weight = 0.1 if spec.mode == "replace" else 0.03
+    file_weight = min(0.25, max(1, file_count) * 0.04)
+    return round(min(1.0, profile_weight + ext_weight + size_weight + mode_weight + file_weight), 3)
+
+
+def run_test_command(command: str, cwd: str | Path) -> tuple[bool, str]:
+    completed = subprocess.run(
+        command,
+        cwd=str(cwd),
+        shell=True,
+        text=True,
+        capture_output=True,
+        timeout=120,
+    )
+    output = (completed.stdout + completed.stderr)[-8000:]
+    return completed.returncode == 0, output
 
 
 def _validate_spec(spec: CodeInjectionSpec, root: Path, target: Path) -> list[str]:

@@ -136,6 +136,20 @@ List policy profiles:
 hydra-inject code-profiles
 ```
 
+Discover injection markers:
+
+```powershell
+hydra-inject markers .
+```
+
+Apply and run tests:
+
+```powershell
+hydra-inject code-apply examples/code_injection_spec.json --test "python -m pytest"
+```
+
+Every admissible plan includes a rollback diff. Review reports include both the forward patch and the rollback patch so a human or agent can see how to unwind the change before applying it.
+
 Apply only after review:
 
 ```powershell

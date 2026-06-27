@@ -12,6 +12,7 @@ import numpy as np
 from hydra_injector.codeweave import (
     PROFILE_DEFAULTS,
     CodeInjectionSpec,
+    discover_markers,
     plan_code_bundle,
     plan_code_injection,
     render_review_report,
@@ -57,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     code_apply = sub.add_parser("code-apply", help="Apply a governed marker-based code injection.")
     code_apply.add_argument("spec_file")
     code_apply.add_argument("--ledger", type=Path, default=None)
+    code_apply.add_argument("--test", default="", help="Optional test command to run after apply.")
 
     code_verify = sub.add_parser("code-verify", help="Verify that a code injection spec is admissible without applying it.")
     code_verify.add_argument("spec_file")
@@ -66,9 +68,15 @@ def build_parser() -> argparse.ArgumentParser:
     code_bundle.add_argument("--apply", action="store_true")
     code_bundle.add_argument("--format", choices=("json", "diff", "report"), default="report")
     code_bundle.add_argument("--ledger", type=Path, default=None)
+    code_bundle.add_argument("--test", default="", help="Optional test command to run after apply.")
 
     code_profiles = sub.add_parser("code-profiles", help="List built-in codeweave profiles.")
     code_profiles.add_argument("--format", choices=("json", "markdown"), default="markdown")
+
+    markers = sub.add_parser("markers", help="Discover HYDRA injection markers under a root.")
+    markers.add_argument("root", nargs="?", default=".")
+    markers.add_argument("--pattern", default="HYDRA-INJECT")
+    markers.add_argument("--format", choices=("json", "markdown"), default="markdown")
 
     code_scaffold = sub.add_parser("code-scaffold", help="Print a starter code injection spec.")
     code_scaffold.add_argument("--target-file", default="example.py")
@@ -138,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "code-apply":
             _validate_schema(args.spec_file, "codeweave_spec.schema.json")
             spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
-            result = plan_code_injection(spec, apply=True)
+            result = plan_code_injection(spec, apply=True, test_command=args.test)
             if args.ledger:
                 write_session_ledger(result, args.ledger)
             print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
@@ -146,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "code-bundle":
             _validate_schema(args.spec_file, "codeweave_bundle.schema.json")
             payload = json.loads(Path(args.spec_file).read_text(encoding="utf-8"))
-            result = plan_code_bundle(payload, apply=args.apply)
+            result = plan_code_bundle(payload, apply=args.apply, test_command=args.test)
             if args.ledger:
                 write_session_ledger(result, args.ledger)
             if args.format == "json":
@@ -156,6 +164,16 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(render_review_report(result), end="")
             return 0 if result.admissible else 2
+        if args.command == "markers":
+            markers = discover_markers(args.root, args.pattern)
+            if args.format == "json":
+                print(json.dumps(markers, indent=2, sort_keys=True))
+            else:
+                print("| File | Line | Marker |")
+                print("| --- | ---: | --- |")
+                for item in markers:
+                    print(f"| `{item['file']}` | {item['line']} | `{item['marker']}` |")
+            return 0
         if args.command == "code-profiles":
             if args.format == "json":
                 print(json.dumps(PROFILE_DEFAULTS, indent=2, sort_keys=True))

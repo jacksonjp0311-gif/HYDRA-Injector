@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from hydra_injector import CodeInjectionSpec, plan_code_injection
-from hydra_injector.codeweave import inject_text
+from hydra_injector.codeweave import discover_markers, inject_text, risk_score
 from hydra_injector.codeweave import plan_code_bundle, render_review_report
 from hydra_injector.cli import _validate_schema
 
@@ -91,3 +91,25 @@ def test_code_bundle_generates_combined_report(tmp_path: Path):
 
 def test_example_code_bundle_spec_matches_schema():
     _validate_schema("examples/code_bundle_spec.json", "codeweave_bundle.schema.json")
+
+
+def test_discover_markers_finds_marker(tmp_path: Path):
+    target = tmp_path / "target.py"
+    target.write_text("# HYDRA-INJECT:slot\n", encoding="utf-8")
+
+    markers = discover_markers(tmp_path)
+
+    assert markers[0]["file"] == "target.py"
+    assert markers[0]["line"] == 1
+
+
+def test_risk_score_is_bounded():
+    spec = CodeInjectionSpec(
+        root=".",
+        target_file="target.py",
+        marker="# slot",
+        code="def x():\n    return 1\n",
+        rationale="bounded test injection",
+    )
+
+    assert 0 < risk_score(spec) <= 1
