@@ -1,45 +1,53 @@
 # HYDRA Injector
 
-**A governed anchor-inject-retract-seal operator for admissible masked fields.**
+**Governed injection for fields, artifacts, and agent-authored code.**
 
-HYDRA Injector turns the HYDRA v1.4 residual-operator theory into a practical Python tool. It is not an adversarial injection utility. It is a controlled field-injection and residual-stabilization harness for testing how a scalar field behaves when it is anchored to an admissible domain, normalized, retracted, sealed, and audited for drift.
+HYDRA Injector is a Python operator toolkit built from the HYDRA v1.4 theory: every injection must be anchored, bounded, retracted against unsafe scope, sealed into an auditable artifact, and checked for drift.
 
-```text
-mask + precursor field
-  -> anchor
-  -> inject
-  -> retract
-  -> seal
-  -> residual field + metrics + archive gate
-```
+It has two connected modes:
 
-## Why It Exists
-
-Many systems mistake smoothness for stability, bounded execution for robustness, and a successful run for a valid claim. HYDRA Injector makes those failure modes explicit.
-
-It answers:
-
-> Did the residual remain bounded, nontrivial, admissible, and qualitatively stable under controlled perturbation?
-
-## Core Operator
-
-HYDRA uses the ordered composition:
-
-```text
-H = Seal o Retract o Inject o Anchor
-```
-
-| Stage | Meaning |
+| Mode | What it does |
 | --- | --- |
-| Anchor | Fix the admissible masked domain. |
-| Inject | Load a precursor field into that domain under volume normalization. |
-| Retract | Remove controlled bulk amplitude without erasing the residual. |
-| Seal | Stabilize the residual through constrained local smoothing. |
-| Report | Measure curvature, omega, mass, nontriviality, and boundedness. |
+| **Residual Field Injection** | Runs the HYDRA `anchor -> inject -> retract -> seal` operator over admissible masked scalar fields. |
+| **Agent Codeweave** | Lets agents propose code insertions into explicit file markers, producing reviewable diffs by default. |
 
-The order is intentionally locked. Reordering the stages changes the operator.
+HYDRA Injector is not an exploit tool and does not execute injected code. It is a defensive, review-first injection layer for controlled experiments, agent systems, and governed artifact evolution.
+
+```text
+anchor -> inject -> retract -> seal -> report
+```
+
+## Why This Matters
+
+Modern agent systems are starting to write code, modify artifacts, maintain memory, and evolve repositories. That creates a hard problem:
+
+> How do you let an agent inject useful structure without letting it drift, overreach, erase context, or smuggle unsafe behavior?
+
+HYDRA Injector answers by making injection explicit and bounded:
+
+- anchor the target,
+- inject only into an admissible region,
+- retract unsafe or excessive scope,
+- seal the result as metrics, a diff, or an archive-gated artifact,
+- preserve non-claim boundaries.
+
+The core philosophy is simple:
+
+```text
+No anchor, no injection.
+No boundary, no promotion.
+No seal, no trust.
+```
 
 ## Install
+
+```powershell
+git clone <repo-url>
+cd hydra-injector
+python -m pip install -e .[dev]
+```
+
+For the local workspace used during development:
 
 ```powershell
 cd "$env:USERPROFILE\OneDrive\Desktop\hydra-injector"
@@ -48,54 +56,51 @@ python -m pip install -e .[dev]
 
 ## Quick Start
 
-Run the demo:
+Run the residual-field demo:
 
 ```powershell
 hydra-inject demo
 ```
 
-Run a spec file:
+Run a HYDRA spec:
 
 ```powershell
 hydra-inject run examples/demo_spec.json
 ```
 
-Return JSON:
+Return machine-readable JSON:
 
 ```powershell
 hydra-inject run examples/demo_spec.json --format json
 ```
 
-Generate a starter spec:
-
-```powershell
-hydra-inject scaffold --size 9
-```
-
-Run perturbation robustness:
+Test perturbation robustness:
 
 ```powershell
 hydra-inject robustness examples/demo_spec.json --trials 12 --noise-scale 0.03
 ```
 
-Check a shadow-header archive gate:
+Generate a starter field spec:
 
 ```powershell
-hydra-inject archive-gate examples/demo_spec.json
+hydra-inject scaffold --size 9
 ```
 
-## Agent Code Injection
+## Agent Codeweave
 
-HYDRA Injector can also let agents inject code, but only as a governed edit workflow. It does not execute injected code. It anchors to an explicit file and marker, checks admissibility, retracts unsafe scope, and seals the proposal as a diff unless `code-apply` is explicitly used.
+Codeweave is the agent-code injection layer. Agents can propose edits, but HYDRA forces them through explicit anchors and reviewable patches.
 
 ```text
 target file + marker + code block
-  -> path / extension / size / pattern checks
+  -> path checks
+  -> extension checks
+  -> size checks
+  -> forbidden-pattern checks
   -> unified diff
   -> optional explicit apply
 ```
 
-Plan an injection:
+Plan an injection as a diff:
 
 ```powershell
 hydra-inject code-plan examples/code_injection_spec.json
@@ -107,21 +112,50 @@ Return structured JSON:
 hydra-inject code-plan examples/code_injection_spec.json --format json
 ```
 
-Apply an admissible injection:
+Apply only after review:
 
 ```powershell
 hydra-inject code-apply examples/code_injection_spec.json
 ```
 
-Generate a starter code-injection spec:
+Generate a starter codeweave spec:
 
 ```powershell
 hydra-inject code-scaffold --target-file src/app.py --marker "# HYDRA-INJECT:slot"
 ```
 
-The codeweave layer blocks path escapes, disallowed file extensions, oversized snippets, and common dangerous patterns such as `eval`, `exec`, `os.system`, subprocess calls, and pipe-to-shell payloads.
+Codeweave currently blocks:
 
-## Output Metrics
+- path escapes outside the configured root,
+- disallowed file extensions,
+- oversized snippets,
+- `eval(...)`,
+- `exec(...)`,
+- `os.system(...)`,
+- direct `subprocess.` calls,
+- pipe-to-shell payloads.
+
+The default workflow is diff-only. Nothing is written unless `code-apply` is used.
+
+## Residual Field Operator
+
+HYDRA uses the ordered composition:
+
+```text
+H = Seal o Retract o Inject o Anchor
+```
+
+| Stage | Purpose |
+| --- | --- |
+| **Anchor** | Fix the admissible masked domain. |
+| **Inject** | Load a precursor field under volume normalization. |
+| **Retract** | Remove controlled bulk amplitude without erasing the residual. |
+| **Seal** | Stabilize through constrained local smoothing. |
+| **Report** | Emit boundedness, curvature, omega, mass, and nontriviality metrics. |
+
+The stage order is locked. Reordering it changes the operator.
+
+## Metrics
 
 | Metric | Meaning |
 | --- | --- |
@@ -133,18 +167,9 @@ The codeweave layer blocks path escapes, disallowed file extensions, oversized s
 | `nontriviality` | Guard against trivial smoothing collapse. |
 | `bounded` | Whether residual values remain finite. |
 
-## What Makes This Different
+## Spec Examples
 
-HYDRA Injector combines three layers that are usually separate:
-
-- a numerical residual operator,
-- perturbation-basin robustness checks,
-- artifact header governance,
-- governed agent code weaving.
-
-That means a run is not treated as valid merely because it executes. It must remain bounded, nontrivial, and recallable under explicit claim boundaries.
-
-## Spec Model
+Field spec:
 
 ```json
 {
@@ -162,9 +187,29 @@ That means a run is not treated as valid merely because it executes. It must rem
 }
 ```
 
+Codeweave spec:
+
+```json
+{
+  "root": ".",
+  "target_file": "examples/code_target.py",
+  "marker": "# HYDRA-INJECT:slot",
+  "mode": "after",
+  "code": "\n\ndef injected_hook() -> str:\n    return \"bounded injection\"\n",
+  "max_bytes": 20000,
+  "rationale": "Demonstrate governed agent-authored code insertion into an explicit marker."
+}
+```
+
 ## Shadow-Header Governance
 
-HYDRA v1.4 makes artifact typing part of anti-drift logic. This repo implements that as an archive gate. A HYDRA artifact should state:
+HYDRA v1.4 makes artifact typing part of anti-drift logic. HYDRA Injector implements that as an archive gate:
+
+```powershell
+hydra-inject archive-gate examples/demo_spec.json
+```
+
+Archive-ready artifacts should state:
 
 - artifact class,
 - claim type,
@@ -176,6 +221,30 @@ HYDRA v1.4 makes artifact typing part of anti-drift logic. This repo implements 
 - evolution gate,
 - terminology stability,
 - explicit non-claims.
+
+## What Makes It Different
+
+HYDRA Injector combines four layers that are usually separate:
+
+- numerical residual operation,
+- perturbation-basin robustness,
+- archive/header governance,
+- governed agent code weaving.
+
+That lets it support both scientific-style residual experiments and practical agent-code workflows under the same discipline:
+
+```text
+bounded target + explicit claim + sealed output
+```
+
+## Use Cases
+
+- Let agents propose code safely through marker-bound diffs.
+- Build review-first agent patch workflows.
+- Test residual-field stability under perturbation.
+- Detect trivial smoothing collapse.
+- Package operator runs with archive-ready claim boundaries.
+- Keep generated artifacts from drifting into unsupported claims.
 
 ## Source Lineage
 
@@ -204,6 +273,7 @@ Supporting references:
 python -m pip install -e .[dev]
 python -m pytest
 hydra-inject run examples/demo_spec.json
+hydra-inject code-plan examples/code_injection_spec.json
 ```
 
 ## Non-Claim Lock
@@ -215,7 +285,8 @@ HYDRA Injector does not claim:
 - benchmark reproduction,
 - arbitrary discretization stability,
 - that smoothness equals structural validity,
-- that header governance replaces mathematical or empirical validation.
+- that generated code is automatically correct or safe,
+- that header governance replaces mathematical, empirical, or code review validation.
 
 ## License
 
