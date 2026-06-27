@@ -38,7 +38,17 @@ numerical operation + perturbation basin + archive gate
 
 That means the tool can say more than "the output is smooth." It can report whether the run stayed bounded, nontrivial, admissible, and properly typed.
 
+## Code Injection Layer
+
+The codeweave layer maps HYDRA's operator into source-code edits:
+
+- anchor: explicit repository root, target file, and marker,
+- inject: agent-authored code block,
+- retract: path, extension, size, and forbidden-pattern checks,
+- seal: unified diff or explicit apply result.
+
+This makes agent code injection reviewable and bounded. The tool does not execute injected code.
+
 ## Safety Boundary
 
 Despite the name, this is not a prompt-injection or exploit tool. It is a controlled scalar-field injection harness for defensive, scientific, and governance-oriented use.
-

@@ -84,6 +84,43 @@ Check a shadow-header archive gate:
 hydra-inject archive-gate examples/demo_spec.json
 ```
 
+## Agent Code Injection
+
+HYDRA Injector can also let agents inject code, but only as a governed edit workflow. It does not execute injected code. It anchors to an explicit file and marker, checks admissibility, retracts unsafe scope, and seals the proposal as a diff unless `code-apply` is explicitly used.
+
+```text
+target file + marker + code block
+  -> path / extension / size / pattern checks
+  -> unified diff
+  -> optional explicit apply
+```
+
+Plan an injection:
+
+```powershell
+hydra-inject code-plan examples/code_injection_spec.json
+```
+
+Return structured JSON:
+
+```powershell
+hydra-inject code-plan examples/code_injection_spec.json --format json
+```
+
+Apply an admissible injection:
+
+```powershell
+hydra-inject code-apply examples/code_injection_spec.json
+```
+
+Generate a starter code-injection spec:
+
+```powershell
+hydra-inject code-scaffold --target-file src/app.py --marker "# HYDRA-INJECT:slot"
+```
+
+The codeweave layer blocks path escapes, disallowed file extensions, oversized snippets, and common dangerous patterns such as `eval`, `exec`, `os.system`, subprocess calls, and pipe-to-shell payloads.
+
 ## Output Metrics
 
 | Metric | Meaning |
@@ -102,7 +139,8 @@ HYDRA Injector combines three layers that are usually separate:
 
 - a numerical residual operator,
 - perturbation-basin robustness checks,
-- artifact header governance.
+- artifact header governance,
+- governed agent code weaving.
 
 That means a run is not treated as valid merely because it executes. It must remain bounded, nontrivial, and recallable under explicit claim boundaries.
 
@@ -182,4 +220,3 @@ HYDRA Injector does not claim:
 ## License
 
 MIT
-

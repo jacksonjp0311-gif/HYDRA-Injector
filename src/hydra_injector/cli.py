@@ -9,6 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
+from hydra_injector.codeweave import CodeInjectionSpec, plan_code_injection
 from hydra_injector.governance import archive_gate
 from hydra_injector.operator import HydraConfig, hydra_operator
 from hydra_injector.robustness import perturbation_sweep
@@ -40,6 +41,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     header = sub.add_parser("archive-gate", help="Validate a shadow-header JSON object.")
     header.add_argument("header_file")
+
+    code_plan = sub.add_parser("code-plan", help="Plan a governed marker-based code injection and print a diff.")
+    code_plan.add_argument("spec_file")
+    code_plan.add_argument("--format", choices=("json", "diff"), default="diff")
+
+    code_apply = sub.add_parser("code-apply", help="Apply a governed marker-based code injection.")
+    code_apply.add_argument("spec_file")
+
+    code_scaffold = sub.add_parser("code-scaffold", help="Print a starter code injection spec.")
+    code_scaffold.add_argument("--target-file", default="example.py")
+    code_scaffold.add_argument("--marker", default="# HYDRA-INJECT:slot")
     return parser
 
 
@@ -77,6 +89,24 @@ def main(argv: list[str] | None = None) -> int:
             header = raw.get("header", raw) if isinstance(raw, dict) else raw
             print(json.dumps(archive_gate(header), indent=2, sort_keys=True))
             return 0
+        if args.command == "code-scaffold":
+            print(json.dumps(_code_scaffold(args.target_file, args.marker), indent=2))
+            return 0
+        if args.command == "code-plan":
+            spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
+            result = plan_code_injection(spec, apply=False)
+            if args.format == "json":
+                print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+            else:
+                print(result.diff, end="")
+                if result.warnings:
+                    print("\n".join(f"warning: {warning}" for warning in result.warnings), file=sys.stderr)
+            return 0 if result.admissible else 2
+        if args.command == "code-apply":
+            spec = CodeInjectionSpec.from_raw(json.loads(Path(args.spec_file).read_text(encoding="utf-8")))
+            result = plan_code_injection(spec, apply=True)
+            print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+            return 0 if result.admissible else 2
         return 1
     except Exception as exc:  # noqa: BLE001 - CLI should return clean operator errors.
         print(f"hydra-inject: {exc}", file=sys.stderr)
@@ -143,6 +173,19 @@ def _markdown(payload: dict[str, object]) -> str:
 
 def _demo_spec() -> dict[str, object]:
     return _scaffold(7)
+
+
+def _code_scaffold(target_file: str, marker: str) -> dict[str, object]:
+    return {
+        "root": ".",
+        "target_file": target_file,
+        "marker": marker,
+        "mode": "after",
+        "code": "\n# injected by HYDRA codeweave\ndef injected_hook():\n    return 'bounded injection'\n",
+        "allow_extensions": [".py", ".md", ".json", ".toml", ".yml", ".yaml", ".txt"],
+        "max_bytes": 20000,
+        "rationale": "Demonstrate governed agent-authored code insertion into an explicit marker.",
+    }
 
 
 def _scaffold(size: int) -> dict[str, object]:
